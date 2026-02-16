@@ -3,7 +3,6 @@ pipeline {
 
     tools {
         maven 'Maven 3.9'
-        jdk 'JDK 21'
     }
 
     environment {
@@ -119,8 +118,8 @@ pipeline {
                     # Wait for application to start
                     sleep 30
 
-                    # Health check
-                    curl -f http://localhost:8080/api/books || exit 1
+                    # Health check (use container name on Docker network)
+                    curl -f http://library-api:8080/api/books || exit 1
                 '''
             }
         }
