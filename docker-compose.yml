@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  # Jenkins CI/CD Server
+  jenkins:
+    image: jenkins/jenkins:lts-jdk17
+    container_name: jenkins
+    privileged: true
+    user: root
+    ports:
+      - "8081:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+    networks:
+      - cicd-network
+    restart: unless-stopped
+
+  # SonarQube Code Quality Server
+  sonarqube:
+    image: sonarqube:lts-community
+    container_name: sonarqube
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+      - SONAR_JDBC_URL=jdbc:postgresql://sonar-db:5432/sonarqube
+      - SONAR_JDBC_USERNAME=sonarqube
+      - SONAR_JDBC_PASSWORD=sonarqube
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_logs:/opt/sonarqube/logs
+      - sonarqube_extensions:/opt/sonarqube/extensions
+    networks:
+      - cicd-network
+    depends_on:
+      - sonar-db
+    restart: unless-stopped
+
+  # PostgreSQL for SonarQube
+  sonar-db:
+    image: postgres:15-alpine
+    container_name: sonar-db
+    environment:
+      - POSTGRES_USER=sonarqube
+      - POSTGRES_PASSWORD=sonarqube
+      - POSTGRES_DB=sonarqube
+    volumes:
+      - sonar_db_data:/var/lib/postgresql/data
+    networks:
+      - cicd-network
+    restart: unless-stopped
+
+  # Library API Application (for deployment)
+  library-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: library-api
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - DB_HOST=library-db
+      - DB_PORT=5432
+      - DB_NAME=librarydb
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+    networks:
+      - cicd-network
+    depends_on:
+      - library-db
+    restart: unless-stopped
+    profiles:
+      - deploy
+
+  # PostgreSQL for Library API (production)
+  library-db:
+    image: postgres:15-alpine
+    container_name: library-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=librarydb
+    volumes:
+      - library_db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - cicd-network
+    restart: unless-stopped
+    profiles:
+      - deploy
+
+networks:
+  cicd-network:
+    driver: bridge
+
+volumes:
+  jenkins_home:
+  sonarqube_data:
+  sonarqube_logs:
+  sonarqube_extensions:
+  sonar_db_data:
+  library_db_data:
