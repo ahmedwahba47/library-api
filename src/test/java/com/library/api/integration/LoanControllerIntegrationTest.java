@@ -84,7 +84,7 @@ class LoanControllerIntegrationTest {
         @DisplayName("should return paginated list of loans")
         void shouldReturnPaginatedLoans() throws Exception {
             mockMvc.perform(get("/api/loans")
-                            .param("page", "0")
+                            .param("page", "1")
                             .param("size", "10"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.content", hasSize(1)))

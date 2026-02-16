@@ -276,8 +276,8 @@ curl -X PUT http://localhost:8080/api/loans/1/return
 ### Search with Pagination
 
 ```bash
-# Page 0, 5 items, sorted by title
-curl "http://localhost:8080/api/books?page=0&size=5&sort=title,asc"
+# Page 1, 5 items, sorted by title
+curl "http://localhost:8080/api/books?page=1&size=5&sort=title,asc"
 
 # Filter loans by date range
 curl "http://localhost:8080/api/loans?startDate=2026-01-01&endDate=2026-12-31"

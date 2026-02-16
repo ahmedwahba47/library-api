@@ -195,7 +195,7 @@ class BookControllerEdgeCaseIntegrationTest {
             bookRepository.save(book2);
 
             mockMvc.perform(get("/api/books")
-                            .param("page", "0")
+                            .param("page", "1")
                             .param("size", "1"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.content", hasSize(1)))

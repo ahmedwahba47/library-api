@@ -2,11 +2,11 @@
 INSERT INTO books (title, author, isbn, published_date, genre, total_copies, available_copies) VALUES
 ('The Great Gatsby', 'F. Scott Fitzgerald', '978-0743273565', '1925-04-10', 'Fiction', 5, 4),
 ('To Kill a Mockingbird', 'Harper Lee', '978-0446310789', '1960-07-11', 'Fiction', 3, 2),
-('1984', 'George Orwell', '978-0451524935', '1949-06-08', 'Dystopian', 4, 3),
+('1984', 'George Orwell', '978-0451524935', '1949-06-08', 'Dystopian', 4, 4),
 ('Pride and Prejudice', 'Jane Austen', '978-0141439518', '1813-01-28', 'Romance', 3, 3),
 ('The Catcher in the Rye', 'J.D. Salinger', '978-0316769488', '1951-07-16', 'Fiction', 2, 1),
 ('The Hobbit', 'J.R.R. Tolkien', '978-0547928227', '1937-09-21', 'Fantasy', 6, 5),
-('Harry Potter and the Philosopher''s Stone', 'J.K. Rowling', '978-0747532699', '1997-06-26', 'Fantasy', 8, 6),
+('Harry Potter and the Philosopher''s Stone', 'J.K. Rowling', '978-0747532699', '1997-06-26', 'Fantasy', 8, 7),
 ('The Lord of the Rings', 'J.R.R. Tolkien', '978-0618640157', '1954-07-29', 'Fantasy', 4, 4),
 ('Animal Farm', 'George Orwell', '978-0451526342', '1945-08-17', 'Satire', 3, 2),
 ('Brave New World', 'Aldous Huxley', '978-0060850524', '1932-01-01', 'Dystopian', 3, 3);

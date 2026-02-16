@@ -66,7 +66,7 @@ class BookControllerIntegrationTest {
         @DisplayName("should return paginated list of books")
         void shouldReturnPaginatedBooks() throws Exception {
             mockMvc.perform(get("/api/books")
-                            .param("page", "0")
+                            .param("page", "1")
                             .param("size", "10"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.content", hasSize(1)))
@@ -296,7 +296,7 @@ class BookControllerIntegrationTest {
         @DisplayName("should paginate correctly with custom page size")
         void shouldPaginateCorrectly() throws Exception {
             mockMvc.perform(get("/api/books")
-                            .param("page", "0")
+                            .param("page", "1")
                             .param("size", "5"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.content", hasSize(5)))
@@ -309,7 +309,7 @@ class BookControllerIntegrationTest {
         @DisplayName("should return correct page number")
         void shouldReturnCorrectPage() throws Exception {
             mockMvc.perform(get("/api/books")
-                            .param("page", "1")
+                            .param("page", "2")
                             .param("size", "5"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.content", hasSize(5)))
