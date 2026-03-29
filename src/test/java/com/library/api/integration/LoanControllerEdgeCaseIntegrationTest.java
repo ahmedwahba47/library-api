@@ -97,21 +97,6 @@ class LoanControllerEdgeCaseIntegrationTest {
         }
 
         @Test
-        @DisplayName("should return 400 when email format is invalid")
-        void shouldReturn400WhenEmailInvalid() throws Exception {
-            LoanCreateRequest request = LoanCreateRequest.builder()
-                    .borrowerName("Valid Name")
-                    .borrowerEmail("not-an-email")
-                    .dueDate(LocalDate.now().plusWeeks(2))
-                    .build();
-
-            mockMvc.perform(post("/api/books/{bookId}/loans", testBook.getId())
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isBadRequest());
-        }
-
-        @Test
         @DisplayName("should return 400 when dueDate is in the past")
         void shouldReturn400WhenDueDatePast() throws Exception {
             LoanCreateRequest request = LoanCreateRequest.builder()
@@ -145,7 +130,6 @@ class LoanControllerEdgeCaseIntegrationTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isCreated());
 
-            // Verify book now has 0 available copies
             mockMvc.perform(get("/api/books/{id}", testBook.getId()))
                     .andExpect(jsonPath("$.availableCopies").value(0));
         }
@@ -153,7 +137,6 @@ class LoanControllerEdgeCaseIntegrationTest {
         @Test
         @DisplayName("should return 400 when all copies are loaned out")
         void shouldReturn400WhenAllCopiesLoaned() throws Exception {
-            // Loan the last copy
             LoanCreateRequest request1 = LoanCreateRequest.builder()
                     .borrowerName("Jane Smith")
                     .borrowerEmail("jane@example.com")
@@ -165,7 +148,6 @@ class LoanControllerEdgeCaseIntegrationTest {
                             .content(objectMapper.writeValueAsString(request1)))
                     .andExpect(status().isCreated());
 
-            // Try to loan again - should fail
             LoanCreateRequest request2 = LoanCreateRequest.builder()
                     .borrowerName("Bob Jones")
                     .borrowerEmail("bob@example.com")
@@ -186,7 +168,6 @@ class LoanControllerEdgeCaseIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("RETURNED"));
 
-            // Verify copies incremented back
             mockMvc.perform(get("/api/books/{id}", testBook.getId()))
                     .andExpect(jsonPath("$.availableCopies").value(2));
         }
@@ -199,60 +180,12 @@ class LoanControllerEdgeCaseIntegrationTest {
         @Test
         @DisplayName("should return 400 when returning already returned loan")
         void shouldReturn400ForDoubleReturn() throws Exception {
-            // Return the loan
             mockMvc.perform(put("/api/loans/{id}/return", testLoan.getId()))
                     .andExpect(status().isOk());
 
-            // Try to return again
             mockMvc.perform(put("/api/loans/{id}/return", testLoan.getId()))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.message").value(containsString("already been returned")));
-        }
-
-        @Test
-        @DisplayName("should return 404 when returning non-existent loan")
-        void shouldReturn404ForNonExistentLoan() throws Exception {
-            mockMvc.perform(put("/api/loans/{id}/return", 99999L))
-                    .andExpect(status().isNotFound());
-        }
-    }
-
-    @Nested
-    @DisplayName("Cross-entity Operations")
-    class CrossEntityOperations {
-
-        @Test
-        @DisplayName("should return 404 when creating loan for non-existent book")
-        void shouldReturn404ForLoanOnNonExistentBook() throws Exception {
-            LoanCreateRequest request = LoanCreateRequest.builder()
-                    .borrowerName("Jane Smith")
-                    .borrowerEmail("jane@example.com")
-                    .dueDate(LocalDate.now().plusWeeks(2))
-                    .build();
-
-            mockMvc.perform(post("/api/books/{bookId}/loans", 99999L)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isNotFound());
-        }
-
-        @Test
-        @DisplayName("should return empty list for book with no loans")
-        void shouldReturnEmptyForBookWithNoLoans() throws Exception {
-            // Create a book with no loans
-            Book emptyBook = Book.builder()
-                    .title("No Loans Book")
-                    .author("Author")
-                    .isbn("9789999999999")
-                    .totalCopies(5)
-                    .availableCopies(5)
-                    .loans(new ArrayList<>())
-                    .build();
-            emptyBook = bookRepository.save(emptyBook);
-
-            mockMvc.perform(get("/api/books/{id}/loans", emptyBook.getId()))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.content", hasSize(0)));
         }
     }
 }

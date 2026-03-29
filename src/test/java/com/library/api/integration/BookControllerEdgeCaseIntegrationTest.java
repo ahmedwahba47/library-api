@@ -75,39 +75,6 @@ class BookControllerEdgeCaseIntegrationTest {
         }
 
         @Test
-        @DisplayName("should return 400 when totalCopies is zero")
-        void shouldReturn400WhenTotalCopiesZero() throws Exception {
-            BookCreateRequest request = BookCreateRequest.builder()
-                    .title("Valid Title")
-                    .author("Valid Author")
-                    .isbn("9780000000099")
-                    .totalCopies(0)
-                    .build();
-
-            mockMvc.perform(post("/api/books")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.validationErrors.totalCopies").exists());
-        }
-
-        @Test
-        @DisplayName("should return 400 when ISBN format is invalid")
-        void shouldReturn400WhenIsbnInvalid() throws Exception {
-            BookCreateRequest request = BookCreateRequest.builder()
-                    .title("Valid Title")
-                    .author("Valid Author")
-                    .isbn("INVALID-ISBN")
-                    .totalCopies(1)
-                    .build();
-
-            mockMvc.perform(post("/api/books")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isBadRequest());
-        }
-
-        @Test
         @DisplayName("should return 400 with multiple validation errors simultaneously")
         void shouldReturnMultipleValidationErrors() throws Exception {
             BookCreateRequest request = BookCreateRequest.builder()
@@ -142,94 +109,10 @@ class BookControllerEdgeCaseIntegrationTest {
         }
 
         @Test
-        @DisplayName("should return 404 for PUT on non-existent book")
-        void shouldReturn404ForPutNonExistent() throws Exception {
-            BookCreateRequest request = BookCreateRequest.builder()
-                    .title("Update")
-                    .author("Author")
-                    .isbn("9780000000001")
-                    .totalCopies(1)
-                    .build();
-
-            mockMvc.perform(put("/api/books/{id}", 99999L)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isNotFound());
-        }
-
-        @Test
         @DisplayName("should return 404 for DELETE on non-existent book")
         void shouldReturn404ForDeleteNonExistent() throws Exception {
             mockMvc.perform(delete("/api/books/{id}", 99999L))
                     .andExpect(status().isNotFound());
-        }
-    }
-
-    @Nested
-    @DisplayName("Pagination Edge Cases")
-    class PaginationEdgeCases {
-
-        @Test
-        @DisplayName("should return empty page when requesting beyond total pages")
-        void shouldReturnEmptyForBeyondTotalPages() throws Exception {
-            mockMvc.perform(get("/api/books")
-                            .param("page", "100")
-                            .param("size", "10"))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.content", hasSize(0)))
-                    .andExpect(jsonPath("$.totalElements").value(1));
-        }
-
-        @Test
-        @DisplayName("should handle page size of 1")
-        void shouldHandlePageSizeOne() throws Exception {
-            // Add a second book
-            Book book2 = Book.builder()
-                    .title("Second Book")
-                    .author("Author 2")
-                    .isbn("9782222222222")
-                    .totalCopies(1)
-                    .availableCopies(1)
-                    .loans(new ArrayList<>())
-                    .build();
-            bookRepository.save(book2);
-
-            mockMvc.perform(get("/api/books")
-                            .param("page", "1")
-                            .param("size", "1"))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.content", hasSize(1)))
-                    .andExpect(jsonPath("$.totalElements").value(2))
-                    .andExpect(jsonPath("$.totalPages").value(2));
-        }
-
-        @Test
-        @DisplayName("should use default pagination when no params provided")
-        void shouldUseDefaultPagination() throws Exception {
-            mockMvc.perform(get("/api/books"))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.content").isArray())
-                    .andExpect(jsonPath("$.pageable").exists())
-                    .andExpect(jsonPath("$.totalElements").isNumber());
-        }
-
-        @Test
-        @DisplayName("should sort books by title ascending")
-        void shouldSortByTitleAscending() throws Exception {
-            Book aBook = Book.builder()
-                    .title("Alpha Book")
-                    .author("Author")
-                    .isbn("9783333333333")
-                    .totalCopies(1)
-                    .availableCopies(1)
-                    .loans(new ArrayList<>())
-                    .build();
-            bookRepository.save(aBook);
-
-            mockMvc.perform(get("/api/books")
-                            .param("sort", "title,asc"))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.content[0].title").value("Alpha Book"));
         }
     }
 

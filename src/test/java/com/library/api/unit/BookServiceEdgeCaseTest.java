@@ -16,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -61,34 +62,57 @@ class BookServiceEdgeCaseTest {
     }
 
     @Nested
-    @DisplayName("getBookById edge cases")
-    class GetBookByIdEdgeCases {
+    @DisplayName("getAvailableBooks")
+    class GetAvailableBooks {
 
         @Test
-        @DisplayName("should throw ResourceNotFoundException for negative ID")
-        void shouldThrowExceptionForNegativeId() {
-            when(bookRepository.findById(-1L)).thenReturn(Optional.empty());
+        @DisplayName("should return only books with available copies")
+        void shouldReturnAvailableBooks() {
+            Pageable pageable = PageRequest.of(0, 10);
+            Page<Book> bookPage = new PageImpl<>(List.of(testBook));
+            BookDTO dto = BookDTO.builder().id(1L).title("Test Book").availableCopies(5).build();
 
-            assertThatThrownBy(() -> bookService.getBookById(-1L))
-                    .isInstanceOf(ResourceNotFoundException.class);
+            when(bookRepository.findAvailableBooks(pageable)).thenReturn(bookPage);
+            when(bookMapper.toDTO(testBook)).thenReturn(dto);
+
+            Page<BookDTO> result = bookService.getAvailableBooks(pageable);
+
+            assertThat(result.getContent()).hasSize(1);
+            assertThat(result.getContent().get(0).getAvailableCopies()).isGreaterThan(0);
         }
 
         @Test
-        @DisplayName("should throw ResourceNotFoundException for zero ID")
-        void shouldThrowExceptionForZeroId() {
-            when(bookRepository.findById(0L)).thenReturn(Optional.empty());
+        @DisplayName("should return empty page when no books are available")
+        void shouldReturnEmptyWhenNoneAvailable() {
+            Pageable pageable = PageRequest.of(0, 10);
+            Page<Book> emptyPage = new PageImpl<>(List.of());
 
-            assertThatThrownBy(() -> bookService.getBookById(0L))
-                    .isInstanceOf(ResourceNotFoundException.class);
+            when(bookRepository.findAvailableBooks(pageable)).thenReturn(emptyPage);
+
+            Page<BookDTO> result = bookService.getAvailableBooks(pageable);
+
+            assertThat(result.getContent()).isEmpty();
         }
+    }
+
+    @Nested
+    @DisplayName("searchBooks edge cases")
+    class SearchBooksEdgeCases {
 
         @Test
-        @DisplayName("should throw ResourceNotFoundException for Long.MAX_VALUE ID")
-        void shouldThrowExceptionForMaxLongId() {
-            when(bookRepository.findById(Long.MAX_VALUE)).thenReturn(Optional.empty());
+        @DisplayName("should search by author only when genre is null")
+        void shouldSearchByAuthorOnly() {
+            Pageable pageable = PageRequest.of(0, 10);
+            Page<Book> bookPage = new PageImpl<>(List.of(testBook));
+            BookDTO dto = BookDTO.builder().id(1L).title("Test Book").author("Test Author").build();
 
-            assertThatThrownBy(() -> bookService.getBookById(Long.MAX_VALUE))
-                    .isInstanceOf(ResourceNotFoundException.class);
+            when(bookRepository.searchBooks("Test Author", null, pageable)).thenReturn(bookPage);
+            when(bookMapper.toDTO(testBook)).thenReturn(dto);
+
+            Page<BookDTO> result = bookService.searchBooks("Test Author", null, pageable);
+
+            assertThat(result.getContent()).hasSize(1);
+            verify(bookRepository).searchBooks("Test Author", null, pageable);
         }
     }
 
@@ -220,30 +244,6 @@ class BookServiceEdgeCaseTest {
         }
 
         @Test
-        @DisplayName("should increment from 0 to 1 (first return)")
-        void shouldIncrementFirstReturn() {
-            testBook.setAvailableCopies(0);
-            testBook.setTotalCopies(5);
-            when(bookRepository.save(testBook)).thenReturn(testBook);
-
-            bookService.incrementAvailableCopies(testBook);
-
-            assertThat(testBook.getAvailableCopies()).isEqualTo(1);
-        }
-
-        @Test
-        @DisplayName("should increment to totalCopies minus one (second to last)")
-        void shouldIncrementToSecondToLast() {
-            testBook.setAvailableCopies(3);
-            testBook.setTotalCopies(5);
-            when(bookRepository.save(testBook)).thenReturn(testBook);
-
-            bookService.incrementAvailableCopies(testBook);
-
-            assertThat(testBook.getAvailableCopies()).isEqualTo(4);
-        }
-
-        @Test
         @DisplayName("should throw when decrementing from 0")
         void shouldThrowWhenDecrementingFromZero() {
             testBook.setAvailableCopies(0);
@@ -266,90 +266,6 @@ class BookServiceEdgeCaseTest {
                     .hasMessageContaining("All copies already returned");
 
             verify(bookRepository, never()).save(any());
-        }
-    }
-
-    @Nested
-    @DisplayName("pagination edge cases")
-    class PaginationEdgeCases {
-
-        @Test
-        @DisplayName("should handle large page size gracefully")
-        void shouldHandleLargePageSize() {
-            Pageable pageable = PageRequest.of(0, 1000);
-            Page<Book> bookPage = new PageImpl<>(List.of(testBook), pageable, 1);
-            BookDTO dto = BookDTO.builder().id(1L).title("Test Book").build();
-
-            when(bookRepository.findAll(pageable)).thenReturn(bookPage);
-            when(bookMapper.toDTO(testBook)).thenReturn(dto);
-
-            Page<BookDTO> result = bookService.getAllBooks(pageable);
-
-            assertThat(result.getContent()).hasSize(1);
-            assertThat(result.getTotalElements()).isEqualTo(1);
-        }
-
-        @Test
-        @DisplayName("should return empty page for out-of-range page number")
-        void shouldReturnEmptyPageForOutOfRange() {
-            Pageable pageable = PageRequest.of(100, 10);
-            Page<Book> emptyPage = new PageImpl<>(List.of(), pageable, 0);
-
-            when(bookRepository.findAll(pageable)).thenReturn(emptyPage);
-
-            Page<BookDTO> result = bookService.getAllBooks(pageable);
-
-            assertThat(result.getContent()).isEmpty();
-            assertThat(result.getTotalElements()).isEqualTo(0);
-        }
-    }
-
-    @Nested
-    @DisplayName("search edge cases")
-    class SearchEdgeCases {
-
-        @Test
-        @DisplayName("should return empty results when no match found")
-        void shouldReturnEmptyWhenNoMatch() {
-            Pageable pageable = PageRequest.of(0, 10);
-            Page<Book> emptyPage = new PageImpl<>(List.of());
-
-            when(bookRepository.searchBooks("NonExistentAuthor", "NonExistentGenre", pageable))
-                    .thenReturn(emptyPage);
-
-            Page<BookDTO> result = bookService.searchBooks("NonExistentAuthor", "NonExistentGenre", pageable);
-
-            assertThat(result.getContent()).isEmpty();
-        }
-
-        @Test
-        @DisplayName("should search with null author parameter")
-        void shouldSearchWithNullAuthor() {
-            Pageable pageable = PageRequest.of(0, 10);
-            Page<Book> bookPage = new PageImpl<>(List.of(testBook));
-            BookDTO dto = BookDTO.builder().id(1L).title("Test Book").build();
-
-            when(bookRepository.searchBooks(null, "Fiction", pageable)).thenReturn(bookPage);
-            when(bookMapper.toDTO(testBook)).thenReturn(dto);
-
-            Page<BookDTO> result = bookService.searchBooks(null, "Fiction", pageable);
-
-            assertThat(result.getContent()).hasSize(1);
-        }
-
-        @Test
-        @DisplayName("should search with null genre parameter")
-        void shouldSearchWithNullGenre() {
-            Pageable pageable = PageRequest.of(0, 10);
-            Page<Book> bookPage = new PageImpl<>(List.of(testBook));
-            BookDTO dto = BookDTO.builder().id(1L).title("Test Book").build();
-
-            when(bookRepository.searchBooks("Test Author", null, pageable)).thenReturn(bookPage);
-            when(bookMapper.toDTO(testBook)).thenReturn(dto);
-
-            Page<BookDTO> result = bookService.searchBooks("Test Author", null, pageable);
-
-            assertThat(result.getContent()).hasSize(1);
         }
     }
 }

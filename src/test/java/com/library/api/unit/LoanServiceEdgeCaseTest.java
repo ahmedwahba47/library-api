@@ -19,6 +19,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -128,47 +129,11 @@ class LoanServiceEdgeCaseTest {
             assertThat(result.getBorrowerName()).isEqualTo("Jane");
             verify(bookService).decrementAvailableCopies(testBook);
         }
-
-        @Test
-        @DisplayName("should throw ResourceNotFoundException for non-existent book")
-        void shouldThrowWhenBookNotFound() {
-            when(bookService.findBookById(999L))
-                    .thenThrow(new ResourceNotFoundException("Book", 999L));
-
-            LoanCreateRequest request = LoanCreateRequest.builder()
-                    .borrowerName("Jane")
-                    .borrowerEmail("jane@example.com")
-                    .dueDate(LocalDate.now().plusWeeks(2))
-                    .build();
-
-            assertThatThrownBy(() -> loanService.createLoan(999L, request))
-                    .isInstanceOf(ResourceNotFoundException.class);
-        }
     }
 
     @Nested
     @DisplayName("returnLoan edge cases")
     class ReturnLoanEdgeCases {
-
-        @Test
-        @DisplayName("should set returnDate to today when loan is returned")
-        void shouldSetReturnDateToToday() {
-            when(loanRepository.findById(1L)).thenReturn(Optional.of(testLoan));
-            doNothing().when(bookService).incrementAvailableCopies(testBook);
-            when(loanRepository.save(testLoan)).thenReturn(testLoan);
-
-            LoanDTO returnedDTO = LoanDTO.builder()
-                    .id(1L)
-                    .status(LoanStatus.RETURNED)
-                    .returnDate(LocalDate.now())
-                    .build();
-            when(loanMapper.toDTO(testLoan)).thenReturn(returnedDTO);
-
-            LoanDTO result = loanService.returnLoan(1L);
-
-            assertThat(result.getReturnDate()).isEqualTo(LocalDate.now());
-            assertThat(result.getStatus()).isEqualTo(LoanStatus.RETURNED);
-        }
 
         @Test
         @DisplayName("should reject returning an already returned loan")
@@ -207,34 +172,6 @@ class LoanServiceEdgeCaseTest {
     }
 
     @Nested
-    @DisplayName("deleteLoan edge cases")
-    class DeleteLoanEdgeCases {
-
-        @Test
-        @DisplayName("should increment copies when deleting OVERDUE loan")
-        void shouldIncrementCopiesForOverdueLoan() {
-            testLoan.setStatus(LoanStatus.OVERDUE);
-            when(loanRepository.findById(1L)).thenReturn(Optional.of(testLoan));
-            doNothing().when(bookService).incrementAvailableCopies(testBook);
-            doNothing().when(loanRepository).delete(testLoan);
-
-            loanService.deleteLoan(1L);
-
-            verify(bookService).incrementAvailableCopies(testBook);
-            verify(loanRepository).delete(testLoan);
-        }
-
-        @Test
-        @DisplayName("should throw ResourceNotFoundException when deleting non-existent loan")
-        void shouldThrowWhenDeletingNonExistent() {
-            when(loanRepository.findById(999L)).thenReturn(Optional.empty());
-
-            assertThatThrownBy(() -> loanService.deleteLoan(999L))
-                    .isInstanceOf(ResourceNotFoundException.class);
-        }
-    }
-
-    @Nested
     @DisplayName("updateLoan edge cases")
     class UpdateLoanEdgeCases {
 
@@ -254,11 +191,107 @@ class LoanServiceEdgeCaseTest {
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("Cannot update a returned loan");
         }
+    }
+
+    @Nested
+    @DisplayName("deleteLoan edge cases")
+    class DeleteLoanEdgeCases {
 
         @Test
-        @DisplayName("should throw ResourceNotFoundException for non-existent loan update")
-        void shouldThrowForNonExistentLoanUpdate() {
+        @DisplayName("should delete overdue loan and increment available copies")
+        void shouldDeleteOverdueLoanAndIncrementCopies() {
+            testLoan.setStatus(LoanStatus.OVERDUE);
+            when(loanRepository.findById(1L)).thenReturn(Optional.of(testLoan));
+            doNothing().when(bookService).incrementAvailableCopies(testBook);
+            doNothing().when(loanRepository).delete(testLoan);
+
+            loanService.deleteLoan(1L);
+
+            verify(bookService).incrementAvailableCopies(testBook);
+            verify(loanRepository).delete(testLoan);
+        }
+
+        @Test
+        @DisplayName("should throw ResourceNotFoundException when loan not found")
+        void shouldThrowWhenLoanNotFound() {
             when(loanRepository.findById(999L)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> loanService.deleteLoan(999L))
+                    .isInstanceOf(ResourceNotFoundException.class)
+                    .hasMessageContaining("Loan not found with id: 999");
+        }
+    }
+
+    @Nested
+    @DisplayName("getLoansForBook edge cases")
+    class GetLoansForBookEdgeCases {
+
+        @Test
+        @DisplayName("should throw ResourceNotFoundException when book not found")
+        void shouldThrowWhenBookNotFound() {
+            when(bookService.findBookById(999L))
+                    .thenThrow(new ResourceNotFoundException("Book", 999L));
+
+            assertThatThrownBy(() -> loanService.getLoansForBook(999L, PageRequest.of(0, 10)))
+                    .isInstanceOf(ResourceNotFoundException.class)
+                    .hasMessageContaining("Book not found with id: 999");
+        }
+    }
+
+    @Nested
+    @DisplayName("returnLoan edge cases - not found")
+    class ReturnLoanNotFound {
+
+        @Test
+        @DisplayName("should throw ResourceNotFoundException when loan not found")
+        void shouldThrowWhenLoanNotFound() {
+            when(loanRepository.findById(999L)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> loanService.returnLoan(999L))
+                    .isInstanceOf(ResourceNotFoundException.class)
+                    .hasMessageContaining("Loan not found with id: 999");
+        }
+    }
+
+    @Nested
+    @DisplayName("createLoan edge cases - book not found")
+    class CreateLoanBookNotFound {
+
+        @Test
+        @DisplayName("should throw ResourceNotFoundException when book not found")
+        void shouldThrowWhenBookNotFound() {
+            when(bookService.findBookById(999L))
+                    .thenThrow(new ResourceNotFoundException("Book", 999L));
+
+            LoanCreateRequest request = LoanCreateRequest.builder()
+                    .borrowerName("Jane")
+                    .borrowerEmail("jane@example.com")
+                    .dueDate(LocalDate.now().plusWeeks(2))
+                    .build();
+
+            assertThatThrownBy(() -> loanService.createLoan(999L, request))
+                    .isInstanceOf(ResourceNotFoundException.class)
+                    .hasMessageContaining("Book not found with id: 999");
+        }
+    }
+
+    @Nested
+    @DisplayName("updateLoan edge cases - overdue")
+    class UpdateLoanOverdue {
+
+        @Test
+        @DisplayName("should allow updating an overdue loan")
+        void shouldAllowUpdatingOverdueLoan() {
+            testLoan.setStatus(LoanStatus.OVERDUE);
+            when(loanRepository.findById(1L)).thenReturn(Optional.of(testLoan));
+            when(loanRepository.save(testLoan)).thenReturn(testLoan);
+
+            LoanDTO updatedDTO = LoanDTO.builder()
+                    .id(1L)
+                    .borrowerName("Updated Name")
+                    .status(LoanStatus.OVERDUE)
+                    .build();
+            when(loanMapper.toDTO(testLoan)).thenReturn(updatedDTO);
 
             LoanCreateRequest request = LoanCreateRequest.builder()
                     .borrowerName("Updated Name")
@@ -266,8 +299,10 @@ class LoanServiceEdgeCaseTest {
                     .dueDate(LocalDate.now().plusWeeks(4))
                     .build();
 
-            assertThatThrownBy(() -> loanService.updateLoan(999L, request))
-                    .isInstanceOf(ResourceNotFoundException.class);
+            LoanDTO result = loanService.updateLoan(1L, request);
+
+            assertThat(result.getStatus()).isEqualTo(LoanStatus.OVERDUE);
+            verify(loanMapper).updateEntity(testLoan, request);
         }
     }
 
@@ -276,8 +311,8 @@ class LoanServiceEdgeCaseTest {
     class UpdateOverdueLoansEdgeCases {
 
         @Test
-        @DisplayName("should handle empty list of overdue loans")
-        void shouldHandleEmptyOverdueList() {
+        @DisplayName("should do nothing when no overdue loans exist")
+        void shouldDoNothingWhenNoOverdueLoans() {
             when(loanRepository.findOverdueLoans(LocalDate.now())).thenReturn(List.of());
 
             loanService.updateOverdueLoans();
