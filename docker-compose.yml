@@ -94,6 +94,7 @@ services:
 
 networks:
   cicd-network:
+    name: cicd-network
     driver: bridge
 
 volumes:
