@@ -131,7 +131,7 @@ class BookServiceTest {
             BookDTO result = bookService.getBookById(1L);
 
             assertThat(result.getId()).isEqualTo(1L);
-            assertThat(result.getTitle()).isEqualTo("Wrong Title");
+            assertThat(result.getTitle()).isEqualTo("Test Book");
         }
 
         @Test
