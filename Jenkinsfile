@@ -110,6 +110,7 @@ pipeline {
                     # Run new container
                     docker run -d \
                         --name library-api \
+                        --restart unless-stopped \
                         --network cicd-network \
                         -p 8080:8080 \
                         -e SPRING_PROFILES_ACTIVE=dev \
