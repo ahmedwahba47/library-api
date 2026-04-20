@@ -100,7 +100,7 @@ class BookServiceTest {
             Page<BookDTO> result = bookService.getAllBooks(pageable);
 
             assertThat(result.getContent()).hasSize(1);
-            assertThat(result.getContent().get(0).getTitle()).isEqualTo("Wrong Book");
+            assertThat(result.getContent().get(0).getTitle()).isEqualTo("Test Book");
             verify(bookRepository).findAll(pageable);
         }
 
